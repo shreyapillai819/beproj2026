@@ -20,8 +20,6 @@ GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
 SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite"
-
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DISEASE_JSON = "disease.json"
 
@@ -113,6 +111,7 @@ def call_gemini(prompt):
 
     except Exception as e:
         return f"Gemini Error: {str(e)}"
+
 # ---------------- UI ----------------
 st.set_page_config(page_title="VLM Healthcare", layout="wide")
 
@@ -213,6 +212,7 @@ if "uploaded_image" in st.session_state:
     selected = st.session_state.topk_labels[st.session_state.selected_idx]
 
     # DISEASE INFO
+    disease = None
     if os.path.exists(DISEASE_JSON):
         with open(DISEASE_JSON) as f:
             data = json.load(f)
@@ -229,7 +229,33 @@ if "uploaded_image" in st.session_state:
     q = st.text_input("Ask something")
 
     if st.button("Ask"):
-        ans = call_gemini(f"Disease: {selected}\nQuestion: {q}")
+        disease_context = ""
+        if disease:
+            for k, v in disease.items():
+                disease_context += f"{k}: {v}\n"
+
+        prompt = f"""
+You are a medical assistant.
+
+Patient Info:
+{st.session_state.patient_data}
+
+Detected Disease: {selected}
+
+Disease Details:
+{disease_context}
+
+User Question:
+{q}
+
+Instructions:
+- Answer based ONLY on the disease details provided above
+- If information is missing, use general medical knowledge
+- Keep answer clear and structured
+"""
+
+        ans = call_gemini(prompt)
+
         st.session_state.chat_history.append(("You", q))
         st.session_state.chat_history.append(("AI", ans))
 
