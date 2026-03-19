@@ -1,0 +1,106 @@
+{
+  "melanoma": {
+    "full_name": "Melanoma",
+    "caption": "Dermoscopy shows an asymmetric lesion with irregular pigment network, multiple colors including dark brown, black and blue-gray areas, atypical streaks, regression structures and poorly defined borders, consistent with melanoma and requiring urgent clinical evaluation.",
+    "cause": "Melanoma develops when melanocytes acquire DNA mutations—most often from ultraviolet (UV) radiation—leading to uncontrolled growth and potential spread.",
+    "risk_factors": "Fair skin, heavy UV exposure or tanning beds, blistering sunburns, many/atypical moles, family history of melanoma, and certain genetic syndromes.",
+    "dermoscopic_features": "Asymmetry, multiple colors (brown, black, blue-gray), atypical network/streaks, regression structures, and irregular borders are typical.",
+    "typical_locations": "Sun-exposed areas (back, legs, arms, face), but can occur on non–sun-exposed sites including palms/soles and mucosa.",
+    "symptoms_signs": "ABCDE changes (Asymmetry, Border irregularity, Color variegation, Diameter >6 mm, Evolving), new or changing lesion, bleeding or itch.",
+    "prevention": "Broad-spectrum sunscreen, protective clothing, shade-seeking, avoid tanning beds, routine skin self-exams and periodic professional checks.",
+    "when_to_seek_care": "Immediately if a mole changes in size, shape, color, or symptoms (itch, bleed), or fits ABCDE—prompt dermatology assessment is critical.",
+    "treatment": "Early-stage: surgical excision (often curative). Advanced: immunotherapy, targeted therapy (BRAF/MEK), radiation, and selective chemotherapy depending on stage.",
+    "prognosis": "Highly stage-dependent; early detection yields excellent outcomes, while advanced disease requires systemic therapy with variable response.",
+    "patient_tips": "Photograph moles for comparison over time, learn ABCDE, set reminders for seasonal skin checks, and use SPF 30+ daily."
+  },
+
+  "nv": {
+    "full_name": "Melanocytic nevus (mole)",
+    "caption": "Benign melanocytic nevus showing a symmetric and organized dermoscopic pattern with a uniform pigment network or homogeneous brown coloration without atypical structures.",
+    "cause": "Clusters of melanocytes form localized growths due to genetics and developmental factors; UV exposure can influence the number over time.",
+    "risk_factors": "Genetic predisposition, lighter skin tones, childhood sun exposure; having many nevi modestly increases melanoma risk.",
+    "dermoscopic_features": "Symmetry, organized pattern, uniform network or homogeneous brown color without atypical structures.",
+    "typical_locations": "Anywhere on skin; common on trunk and limbs, can be congenital or acquired.",
+    "symptoms_signs": "Usually asymptomatic, stable in color and shape; concerning signs follow ABCDE if they evolve.",
+    "prevention": "Sun protection in childhood/adulthood and routine monitoring reduces the chance of atypical changes.",
+    "when_to_seek_care": "If a mole changes (size, shape, color), looks different from others (“ugly duckling”), or bleeds/itches persistently.",
+    "treatment": "No treatment needed if typical; excision for cosmetic reasons or pathology if atypical/suspicious.",
+    "prognosis": "Benign; excellent outlook. Atypical changes warrant biopsy to exclude melanoma.",
+    "patient_tips": "Track new moles, avoid peak sun, teach family the ABCDE checklist, and don’t pick or irritate moles."
+  },
+
+  "bkl": {
+    "full_name": "Benign keratosis-like lesion (seborrheic keratosis, solar lentigo, LPLK)",
+    "caption": "Seborrheic keratosis-like lesion showing a sharply demarcated border, milia-like cysts, comedo-like openings and cerebriform surface pattern consistent with benign keratosis.",
+    "cause": "Proliferation of keratinocytes with aging and genetics; not precancerous though may mimic other lesions clinically.",
+    "risk_factors": "Increasing age, family tendency; appear in mid to later adulthood and become more numerous with age.",
+    "dermoscopic_features": "Sharply demarcated borders, milia-like cysts, comedo-like openings, cerebriform/brain-like surface, moth-eaten edges.",
+    "typical_locations": "Face, chest, back, shoulders; any body site except palms/soles; often multiple.",
+    "symptoms_signs": "Waxy, “stuck-on” papules/plaques, brown to black color, may itch or get irritated by friction.",
+    "prevention": "No proven prevention; sun protection helps differentiate from pigmented lesions that require evaluation.",
+    "when_to_seek_care": "If rapidly changing, inflamed, bleeding, or uncertain diagnosis—dermatology review to exclude malignancy.",
+    "treatment": "No treatment needed unless symptomatic/cosmetic: cryotherapy, curettage, shave excision, or laser.",
+    "prognosis": "Benign; removal is curative if desired; lesions may recur elsewhere with aging.",
+    "patient_tips": "Avoid picking; use emollients for irritation; get a check if a lesion looks different from your usual ones."
+  },
+
+  "bcc": {
+    "full_name": "Basal cell carcinoma",
+    "caption": "Basal cell carcinoma displaying arborizing telangiectasia, shiny pearly surface, irregular vessel pattern, ulceration, and blue-gray globules, suggestive of a malignant lesion requiring biopsy.",
+    "cause": "Chronic UV exposure causes DNA damage in basal epidermal cells; cumulative sun over years is the major driver.",
+    "risk_factors": "Fair skin, outdoor/occupational sun, older age, prior radiation, personal skin cancer history, immunosuppression.",
+    "dermoscopic_features": "Arborizing vessels, translucent/pearly surface, ulceration, blue-gray ovoid nests/globules, shiny areas.",
+    "typical_locations": "Head and neck (face, nose, ears), shoulders/upper trunk—areas with heavy sun exposure.",
+    "symptoms_signs": "Non-healing shiny papule/patch, may bleed or crust, slowly enlarging, sometimes tender.",
+    "prevention": "UV avoidance, sunscreen, protective clothing, regular exams especially after prior skin cancers.",
+    "when_to_seek_care": "Any persistent, pearly or bleeding spot that doesn’t heal over weeks; prompt biopsy is indicated.",
+    "treatment": "Surgical excision or Mohs micrographic surgery first-line; alternatives include curettage/cryotherapy, topical agents, radiation, hedgehog-pathway inhibitors for advanced disease.",
+    "prognosis": "Excellent with local therapy; metastasis is rare but neglected lesions can be locally destructive.",
+    "patient_tips": "Schedule routine checks after one BCC; document lesions with photos; practice daily sun protection."
+  },
+
+  "akiec": {
+    "full_name": "Actinic keratosis / intraepidermal carcinoma (SCC in situ)",
+    "caption": "Actinic keratosis or intraepidermal carcinoma showing erythematous base, scaly or crusted surface, dotted vessels, and atypical follicular openings on sun-damaged skin; considered precancerous or early carcinoma in situ.",
+    "cause": "Long-term UV radiation damages keratinocytes, producing dysplasia that can progress to squamous cell carcinoma if untreated.",
+    "risk_factors": "Chronic sun exposure, fair skin, older age, immunosuppression, outdoor work, tanning beds.",
+    "dermoscopic_features": "Erythematous background, adherent scale, dotted/linear vessels, rosettes and follicular changes on facial AK.",
+    "typical_locations": "Face, scalp, ears, lips, forearms, hands—chronically sun-exposed sites.",
+    "symptoms_signs": "Rough, sandpaper-like patch or scaly plaque; may be tender or burn; often multiple on photodamaged skin.",
+    "prevention": "Consistent broad-spectrum sunscreen, sun-protective clothing, shade, lip SPF; avoid tanning devices.",
+    "when_to_seek_care": "New or persistent scaly red patches on sun-exposed skin; evaluation is important due to progression risk.",
+    "treatment": "Cryotherapy for individual lesions; field therapy with topical 5-FU or imiquimod, photodynamic therapy; excision for suspected SCC in situ.",
+    "prognosis": "Excellent with treatment; untreated AK carries a measurable risk of evolving to invasive SCC over time.",
+    "patient_tips": "Treat whole sun-damaged areas (“field therapy”) when multiple AKs exist; maintain strict photoprotection year-round."
+  },
+
+  "df": {
+    "full_name": "Dermatofibroma (benign fibrous histiocytoma)",
+    "caption": "Dermatofibroma presenting with a central white scar-like structure, peripheral delicate pigment network, and firm nodular appearance typical of a benign fibrohistiocytic lesion.",
+    "cause": "Likely reactive fibrous tissue proliferation after minor trauma (e.g., insect bite), though exact cause is uncertain.",
+    "risk_factors": "More frequent in adults and women; can occur in immunocompromised individuals.",
+    "dermoscopic_features": "Central white scar-like area with peripheral delicate network; ‘dimple sign’ on lateral compression is classic.",
+    "typical_locations": "Lower legs, arms, upper back; solitary firm papule/nodule 0.5–1.5 cm.",
+    "symptoms_signs": "Firm, mobile papule; may be pruritic or tender; often stable for years.",
+    "prevention": "No established prevention; general skin care and avoiding repetitive trauma may help.",
+    "when_to_seek_care": "If rapidly growing, painful, atypical appearance, or diagnostic uncertainty—biopsy to exclude mimics.",
+    "treatment": "Observation if asymptomatic; shave or excision for pain/irritation or cosmetic reasons.",
+    "prognosis": "Benign with excellent outlook; recurrence uncommon after complete removal.",
+    "patient_tips": "Avoid rubbing or shaving over the bump; monitor for changes; seek evaluation if atypical features develop."
+  },
+
+  "vasc": {
+    "full_name": "Vascular lesion (angioma / vascular malformation)",
+    "caption": "Vascular lesion characterized by well-defined red, purple or blue homogeneous areas with lacunae and absence of pigment network, consistent with angioma or vascular malformation.",
+    "cause": "Benign proliferation or clustering of blood vessels; can be congenital or appear with aging and hormonal changes.",
+    "risk_factors": "Age-related appearance (cherry angiomas), pregnancy/hormonal shifts; some malformations are congenital.",
+    "dermoscopic_features": "Red-blue homogeneous areas, multiple lacunae, no pigment network; spider angioma shows central arteriole with radiating vessels.",
+    "typical_locations": "Trunk and limbs (cherry angiomas), face (spider angioma); can occur widely on skin.",
+    "symptoms_signs": "Usually asymptomatic; may bleed if traumatized; spider angiomas can reflect systemic or hepatic factors in some cases.",
+    "prevention": "No specific prevention; general skin protection and avoiding trauma minimize bleeding risk.",
+    "when_to_seek_care": "Rapid changes, frequent bleeding, pain, or numerous spider angiomas—evaluate for underlying conditions if clinically indicated.",
+    "treatment": "Often none needed; cosmetic removal with laser, electrocautery, or excision for symptomatic lesions.",
+    "prognosis": "Benign with excellent outlook; cosmetic treatments are effective when desired.",
+    "patient_tips": "Protect from friction; document changes; discuss cosmetic options if lesions bother you."
+  }
+}
