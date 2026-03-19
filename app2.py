@@ -121,7 +121,7 @@ background: linear-gradient(to right, #2196F3, #21CBF3);
 padding:15px;
 border-radius:15px;
 color:white;'>
-🧠 VLM Healthcare System
+🧠 VLM SkinCare 
 </h1>
 """, unsafe_allow_html=True)
 
@@ -224,44 +224,53 @@ if "uploaded_image" in st.session_state:
                 if k!="full_name":
                     st.markdown(f"**{k}**: {v}")
 
-    # CHAT
-    st.subheader("Ask Questions")
-    q = st.text_input("Ask something")
-
     if st.button("Ask"):
-        disease_context = ""
-        if disease:
-            for k, v in disease.items():
-                disease_context += f"{k}: {v}\n"
+    disease_context = ""
 
-        prompt = f"""
-You are a medical assistant.
+    # Add ALL predicted diseases context
+    if os.path.exists(DISEASE_JSON):
+        with open(DISEASE_JSON) as f:
+            data = json.load(f)
+
+        for i, label in enumerate(st.session_state.topk_labels):
+            disease_data = data.get(label)
+
+            if disease_data:
+                disease_context += f"\n--- Disease: {label} (Confidence: {st.session_state.topk_probs[i]*100:.1f}%) ---\n"
+                for k, v in disease_data.items():
+                    disease_context += f"{k}: {v}\n"
+
+    prompt = f"""
+You are an intelligent medical assistant.
 
 Patient Info:
 {st.session_state.patient_data}
 
-Detected Disease: {selected}
+Top Predicted Diseases:
+{list(zip(st.session_state.topk_labels, [float(p) for p in st.session_state.topk_probs]))}
 
-Disease Details:
+Primary Selected Disease:
+{selected}
+
+Detailed Disease Knowledge:
 {disease_context}
 
 User Question:
 {q}
 
 Instructions:
-- Answer based ONLY on the disease details provided above
-- If information is missing, use general medical knowledge
-- Keep answer clear and structured
+- PRIORITIZE answering based on the selected disease
+- ALSO consider other predicted diseases if relevant
+- If question is general, answer normally using medical knowledge
+- If multiple diseases could match, explain differences briefly
+- Keep answer structured and easy to understand
+- Include causes, symptoms, and treatment when useful
 """
 
-        ans = call_gemini(prompt)
+    ans = call_gemini(prompt)
 
-        st.session_state.chat_history.append(("You", q))
-        st.session_state.chat_history.append(("AI", ans))
-
-    for role,text in st.session_state.chat_history:
-        st.write(f"{role}: {text}")
-
+    st.session_state.chat_history.append(("You", q))
+    st.session_state.chat_history.append(("AI", ans))
     # SAVE
     if st.button("Save Session"):
         save_log()
