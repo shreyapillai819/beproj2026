@@ -103,7 +103,7 @@ def call_gemini(prompt):
 
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.5-flash-lite")
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
         response = model.generate_content(prompt)
 
@@ -121,7 +121,7 @@ background: linear-gradient(to right, #2196F3, #21CBF3);
 padding:15px;
 border-radius:15px;
 color:white;'>
-🧠 VLM SkinCare 
+🧠 VLM SkinCare
 </h1>
 """, unsafe_allow_html=True)
 
@@ -224,23 +224,26 @@ if "uploaded_image" in st.session_state:
                 if k!="full_name":
                     st.markdown(f"**{k}**: {v}")
 
+    # ---------------- CHAT ----------------
+    st.subheader("Ask Questions")
+    q = st.text_input("Ask something")
+
     if st.button("Ask"):
-    disease_context = ""
+        disease_context = ""
 
-    # Add ALL predicted diseases context
-    if os.path.exists(DISEASE_JSON):
-        with open(DISEASE_JSON) as f:
-            data = json.load(f)
+        if os.path.exists(DISEASE_JSON):
+            with open(DISEASE_JSON) as f:
+                data = json.load(f)
 
-        for i, label in enumerate(st.session_state.topk_labels):
-            disease_data = data.get(label)
+            for i, label in enumerate(st.session_state.topk_labels):
+                disease_data = data.get(label)
 
-            if disease_data:
-                disease_context += f"\n--- Disease: {label} (Confidence: {st.session_state.topk_probs[i]*100:.1f}%) ---\n"
-                for k, v in disease_data.items():
-                    disease_context += f"{k}: {v}\n"
+                if disease_data:
+                    disease_context += f"\n--- Disease: {label} (Confidence: {st.session_state.topk_probs[i]*100:.1f}%) ---\n"
+                    for k, v in disease_data.items():
+                        disease_context += f"{k}: {v}\n"
 
-    prompt = f"""
+        prompt = f"""
 You are an intelligent medical assistant.
 
 Patient Info:
@@ -267,11 +270,15 @@ Instructions:
 - Include causes, symptoms, and treatment when useful
 """
 
-    ans = call_gemini(prompt)
+        ans = call_gemini(prompt)
 
-    st.session_state.chat_history.append(("You", q))
-    st.session_state.chat_history.append(("AI", ans))
-    # SAVE
+        st.session_state.chat_history.append(("You", q))
+        st.session_state.chat_history.append(("AI", ans))
+
+    for role, text in st.session_state.chat_history:
+        st.write(f"{role}: {text}")
+
+    # ---------------- SAVE ----------------
     if st.button("Save Session"):
         save_log()
         st.success("Saved!")
