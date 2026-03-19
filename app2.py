@@ -1,11 +1,9 @@
-```python
 # ==========================================================
 # VLM Framework for Healthcare (FINAL DEPLOYMENT VERSION)
 # ==========================================================
 
 import os
 import json
-import pandas as pd
 import streamlit as st
 from datetime import datetime
 from PIL import Image, ImageDraw
@@ -18,17 +16,16 @@ from supabase import create_client
 HF_REPO_ID = "shreyapillai1312/skin_vlm"
 LOCAL_MODEL_DIR = "hf_model"
 
-# Secrets (SET IN STREAMLIT CLOUD)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
 
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DISEASE_JSON = "disease.json"
 
-# ---------------- INIT SUPABASE ----------------
+# ---------------- SUPABASE ----------------
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ---------------- GEMINI ----------------
@@ -100,8 +97,8 @@ def predict(pixel_values, model, id2label, topk):
 
 # ---------------- GEMINI ----------------
 def call_gemini(prompt):
-    if genai is None or GEMINI_API_KEY is None:
-        return "Gemini not configured"
+    if genai is None:
+        return "Gemini not available"
 
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel(DEFAULT_GEMINI_MODEL)
@@ -113,19 +110,6 @@ def call_gemini(prompt):
 
 # ---------------- UI ----------------
 st.set_page_config(page_title="VLM Healthcare", layout="wide")
-
-st.markdown("""
-<style>
-body { background: linear-gradient(135deg,#e3f2fd,#ffffff); }
-.card {
-    background: rgba(255,255,255,0.7);
-    backdrop-filter: blur(10px);
-    padding: 15px;
-    border-radius: 15px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-}
-</style>
-""", unsafe_allow_html=True)
 
 st.markdown("""
 <h1 style='text-align:center;
@@ -233,7 +217,7 @@ if "uploaded_image" in st.session_state:
             st.markdown(f"## 🩺 {disease.get('full_name','Unknown')}")
             for k,v in disease.items():
                 if k!="full_name":
-                    st.markdown(f"<div class='card'><b>{k}</b><br>{v}</div>", unsafe_allow_html=True)
+                    st.markdown(f"**{k}**: {v}")
 
     # CHAT
     st.subheader("Ask Questions")
@@ -251,4 +235,3 @@ if "uploaded_image" in st.session_state:
     if st.button("Save Session"):
         save_log()
         st.success("Saved!")
-```
