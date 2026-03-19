@@ -98,16 +98,21 @@ def predict(pixel_values, model, id2label, topk):
 # ---------------- GEMINI ----------------
 def call_gemini(prompt):
     if genai is None:
-        return "Gemini not available"
+        return "Gemini not installed"
 
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel(DEFAULT_GEMINI_MODEL)
+    if GEMINI_API_KEY is None:
+        return "API key missing"
 
     try:
-        return model.generate_content(prompt).text
-    except:
-        return "Error generating response"
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-1.5-flash")
 
+        response = model.generate_content(prompt)
+
+        return response.text if response.text else "No response generated"
+
+    except Exception as e:
+        return f"Gemini Error: {str(e)}"
 # ---------------- UI ----------------
 st.set_page_config(page_title="VLM Healthcare", layout="wide")
 
