@@ -1,7 +1,7 @@
 streamlit==1.55.0
 
 torch==2.9.0
-torchvision==0.20.0
+torchvision==0.24.0
 
 transformers
 huggingface_hub
