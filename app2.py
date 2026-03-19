@@ -106,7 +106,6 @@ def call_gemini(prompt):
         model = genai.GenerativeModel("gemini-2.5-flash-lite")
 
         response = model.generate_content(prompt)
-
         return response.text if response.text else "No response generated"
 
     except Exception as e:
@@ -136,7 +135,7 @@ if st.session_state.user is None:
         u = st.text_input("Username")
         p = st.text_input("Password", type="password")
         if st.button("Login"):
-            if login(u,p):
+            if login(u, p):
                 st.session_state.user = u
                 st.rerun()
             else:
@@ -146,7 +145,7 @@ if st.session_state.user is None:
         u = st.text_input("New Username")
         p = st.text_input("New Password", type="password")
         if st.button("Signup"):
-            if signup(u,p):
+            if signup(u, p):
                 st.success("Account created")
             else:
                 st.error("User exists")
@@ -164,13 +163,13 @@ if st.sidebar.button("Logout"):
     st.session_state.clear()
     st.rerun()
 
-col1, col2 = st.columns([1.2,1])
+col1, col2 = st.columns([1.2, 1])
 
 with col1:
-    uploaded = st.file_uploader("Upload image", type=["jpg","png"])
-    age = st.number_input("Age",0,120,40)
-    gender = st.selectbox("Gender",["Female","Male","Other"])
-    skin = st.selectbox("Skin type",["Type I","II","III","IV","V","VI"])
+    uploaded = st.file_uploader("Upload image", type=["jpg", "png"])
+    age = st.number_input("Age", 0, 120, 40)
+    gender = st.selectbox("Gender", ["Female", "Male", "Other"])
+    skin = st.selectbox("Skin type", ["Type I", "II", "III", "IV", "V", "VI"])
     run = st.button("Predict")
 
 with col2:
@@ -186,7 +185,7 @@ if run and uploaded:
     img = Image.open(uploaded).convert("RGB")
     st.session_state.uploaded_image = img
     st.session_state.image_name = uploaded.name
-    st.session_state.patient_data = {"age":age,"gender":gender,"skin":skin}
+    st.session_state.patient_data = {"age": age, "gender": gender, "skin": skin}
 
     pixel_values = preprocess_image(img, processor)
     labels, probs = predict(pixel_values, model, id2label, top_k)
@@ -198,7 +197,7 @@ if run and uploaded:
 if "uploaded_image" in st.session_state:
     img = st.session_state.uploaded_image.copy()
     draw = ImageDraw.Draw(img)
-    draw.rectangle([0,0,*img.size], outline="#0D47A1", width=20)
+    draw.rectangle([0, 0, *img.size], outline="#0D47A1", width=20)
     out.image(img)
 
     st.subheader("Predictions")
@@ -211,22 +210,23 @@ if "uploaded_image" in st.session_state:
 
     selected = st.session_state.topk_labels[st.session_state.selected_idx]
 
-    # DISEASE INFO
+    # ---------------- DISEASE INFO ----------------
     disease = None
     if os.path.exists(DISEASE_JSON):
         with open(DISEASE_JSON) as f:
             data = json.load(f)
+
         disease = data.get(selected)
 
         if disease:
             st.markdown(f"## 🩺 {disease.get('full_name','Unknown')}")
-            for k,v in disease.items():
-                if k!="full_name":
+            for k, v in disease.items():
+                if k != "full_name":
                     st.markdown(f"**{k}**: {v}")
 
     # ---------------- CHAT ----------------
-    st.subheader("Ask Questions")
-    q = st.text_input("Ask something")
+    st.subheader("💬 Ask Questions")
+    question = st.text_input("Enter your question here:")
 
     if st.button("Ask"):
         disease_context = ""
@@ -239,41 +239,45 @@ if "uploaded_image" in st.session_state:
                 disease_data = data.get(label)
 
                 if disease_data:
-                    disease_context += f"\n--- Disease: {label} (Confidence: {st.session_state.topk_probs[i]*100:.1f}%) ---\n"
+                    disease_context += f"\n--- {label} ({st.session_state.topk_probs[i]*100:.1f}%) ---\n"
                     for k, v in disease_data.items():
                         disease_context += f"{k}: {v}\n"
 
         prompt = f"""
-You are an intelligent medical assistant.
+You are a helpful medical assistant.
 
 Patient Info:
 {st.session_state.patient_data}
 
-Top Predicted Diseases:
+Predicted Diseases:
 {list(zip(st.session_state.topk_labels, [float(p) for p in st.session_state.topk_probs]))}
 
-Primary Selected Disease:
+Primary Focus Disease:
 {selected}
 
-Detailed Disease Knowledge:
+Disease Context:
 {disease_context}
 
 User Question:
-{q}
+{question}
 
 Instructions:
-- PRIORITIZE answering based on the selected disease
-- ALSO consider other predicted diseases if relevant
-- If question is general, answer normally using medical knowledge
-- If multiple diseases could match, explain differences briefly
-- Keep answer structured and easy to understand
-- Include causes, symptoms, and treatment when useful
+- Understand user intent first
+
+If question is:
+• Disease-specific → use predictions
+• Comparison → compare diseases
+• General → answer normally
+
+Rules:
+- Do NOT give a definitive diagnosis
+- Keep answers clear, concise, and structured
 """
 
-        ans = call_gemini(prompt)
+        answer = call_gemini(prompt)
 
-        st.session_state.chat_history.append(("You", q))
-        st.session_state.chat_history.append(("AI", ans))
+        st.session_state.chat_history.append(("User", question))
+        st.session_state.chat_history.append(("AI", answer))
 
     for role, text in st.session_state.chat_history:
         st.write(f"{role}: {text}")
