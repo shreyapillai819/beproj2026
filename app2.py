@@ -1,10 +1,10 @@
+```python
 # ==========================================================
-# VLM Framework for Healthcare (PREMIUM UI VERSION)
+# VLM Framework for Healthcare (FINAL DEPLOYMENT VERSION)
 # ==========================================================
 
 import os
 import json
-import sqlite3
 import pandas as pd
 import streamlit as st
 from datetime import datetime
@@ -12,70 +12,70 @@ from PIL import Image, ImageDraw
 import torch
 from transformers import AutoImageProcessor, AutoModelForImageClassification
 from huggingface_hub import snapshot_download
+from supabase import create_client
 
 # ---------------- CONFIG ----------------
 HF_REPO_ID = "shreyapillai1312/skin_vlm"
 LOCAL_MODEL_DIR = "hf_model"
 
-GEMINI_API_KEY ="AIzaSyCAMWuKGm4aWYiafHSFmHt-ZSw-4CDjFrk"
+# Secrets (SET IN STREAMLIT CLOUD)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-DB_PATH = "users.db"
-CSV_FILE = "all_users_logs.csv"
 DISEASE_JSON = "disease.json"
 
-# ---------------- Gemini ----------------
+# ---------------- INIT SUPABASE ----------------
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# ---------------- GEMINI ----------------
 try:
     import google.generativeai as genai
 except:
     genai = None
 
-# ---------------- DB ----------------
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("CREATE TABLE IF NOT EXISTS users (username TEXT PRIMARY KEY, password TEXT)")
-    conn.commit()
-    conn.close()
-
-init_db()
-
-def signup(u,p):
+# ---------------- AUTH ----------------
+def signup(u, p):
     try:
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("INSERT INTO users VALUES (?,?)",(u,p))
-        conn.commit()
-        conn.close()
+        supabase.table("users").insert({
+            "username": u,
+            "password": p
+        }).execute()
         return True
     except:
         return False
 
-def login(u,p):
-    conn = sqlite3.connect(DB_PATH)
-    res = conn.execute("SELECT * FROM users WHERE username=? AND password=?",(u,p)).fetchone()
-    conn.close()
-    return res is not None
+def login(u, p):
+    res = supabase.table("users") \
+        .select("*") \
+        .eq("username", u) \
+        .eq("password", p) \
+        .execute()
 
-# ---------------- SAVE ----------------
+    return len(res.data) > 0
+
+# ---------------- SAVE LOG ----------------
 def save_log():
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
     data = {
         "username": st.session_state.user,
         "image": st.session_state.image_name,
         "patient": st.session_state.patient_data,
-        "predictions": list(zip(st.session_state.topk_labels, st.session_state.topk_probs.tolist())),
+        "predictions": [
+            {"label": l, "prob": float(p)}
+            for l, p in zip(
+                st.session_state.topk_labels,
+                st.session_state.topk_probs
+            )
+        ],
         "selected": st.session_state.topk_labels[st.session_state.selected_idx],
         "chat": st.session_state.chat_history,
-        "time": timestamp
+        "time": datetime.now().isoformat()
     }
 
-    df = pd.DataFrame([data])
-
-    if os.path.exists(CSV_FILE):
-        df.to_csv(CSV_FILE, mode='a', header=False, index=False)
-    else:
-        df.to_csv(CSV_FILE, index=False)
+    supabase.table("logs").insert(data).execute()
 
 # ---------------- MODEL ----------------
 @st.cache_resource
@@ -100,50 +100,40 @@ def predict(pixel_values, model, id2label, topk):
 
 # ---------------- GEMINI ----------------
 def call_gemini(prompt):
-    if genai is None:
-        return "Gemini SDK missing"
+    if genai is None or GEMINI_API_KEY is None:
+        return "Gemini not configured"
+
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel(DEFAULT_GEMINI_MODEL)
-    return model.generate_content(prompt).text
 
-# ---------------- UI STYLE ----------------
+    try:
+        return model.generate_content(prompt).text
+    except:
+        return "Error generating response"
+
+# ---------------- UI ----------------
 st.set_page_config(page_title="VLM Healthcare", layout="wide")
 
 st.markdown("""
 <style>
-body {
-    background: linear-gradient(135deg,#e3f2fd,#ffffff);
-}
+body { background: linear-gradient(135deg,#e3f2fd,#ffffff); }
 .card {
     background: rgba(255,255,255,0.7);
     backdrop-filter: blur(10px);
     padding: 15px;
     border-radius: 15px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    transition: 0.3s;
-}
-.card:hover {
-    transform: scale(1.03);
-}
-.pred-btn button {
-    border-radius: 10px;
-    transition: 0.2s;
-}
-.pred-btn button:hover {
-    transform: scale(1.05);
-    background-color:#bbdefb;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# HEADER
 st.markdown("""
 <h1 style='text-align:center;
 background: linear-gradient(to right, #2196F3, #21CBF3);
 padding:15px;
 border-radius:15px;
 color:white;'>
-🧠 VLM Framework for Healthcare
+🧠 VLM Healthcare System
 </h1>
 """, unsafe_allow_html=True)
 
@@ -180,37 +170,32 @@ st.markdown(f"### 👋 Welcome, {st.session_state.user}")
 
 processor, model, id2label = load_model()
 
-st.sidebar.header("⚙️ Settings")
 top_k = st.sidebar.slider("Top-K predictions", 1, 7, 3)
-st.sidebar.markdown("---")
-if st.sidebar.button("🚪 Logout"):
+
+if st.sidebar.button("Logout"):
     st.session_state.clear()
     st.rerun()
 
 col1, col2 = st.columns([1.2,1])
 
 with col1:
-    uploaded = st.file_uploader("📤 Upload skin image", type=["jpg","png"])
-
-    age = st.number_input("Patient age",0,120,40)
+    uploaded = st.file_uploader("Upload image", type=["jpg","png"])
+    age = st.number_input("Age",0,120,40)
     gender = st.selectbox("Gender",["Female","Male","Other"])
-    skin = st.selectbox("Skin type",["Type I","Type II","Type III","Type IV","Type V","Type VI"])
-
-    run_button = st.button("🚀 Predict")
+    skin = st.selectbox("Skin type",["Type I","II","III","IV","V","VI"])
+    run = st.button("Predict")
 
 with col2:
-    out_area = st.empty()
+    out = st.empty()
 
-# SESSION
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "selected_idx" not in st.session_state:
     st.session_state.selected_idx = 0
 
-# PREDICT
-if run_button and uploaded:
+# ---------------- PREDICT ----------------
+if run and uploaded:
     img = Image.open(uploaded).convert("RGB")
-
     st.session_state.uploaded_image = img
     st.session_state.image_name = uploaded.name
     st.session_state.patient_data = {"age":age,"gender":gender,"skin":skin}
@@ -221,16 +206,16 @@ if run_button and uploaded:
     st.session_state.topk_labels = labels
     st.session_state.topk_probs = probs
 
-# DISPLAY
+# ---------------- DISPLAY ----------------
 if "uploaded_image" in st.session_state:
     img = st.session_state.uploaded_image.copy()
     draw = ImageDraw.Draw(img)
-    draw.rectangle([0,0,*img.size], outline="#0D47A1", width=40)
-    out_area.image(img)
+    draw.rectangle([0,0,*img.size], outline="#0D47A1", width=20)
+    out.image(img)
 
-    st.subheader("🔍 Predictions")
-
+    st.subheader("Predictions")
     cols = st.columns(len(st.session_state.topk_labels))
+
     for i, label in enumerate(st.session_state.topk_labels):
         with cols[i]:
             if st.button(f"{label}\n{st.session_state.topk_probs[i]*100:.1f}%", key=i):
@@ -238,22 +223,21 @@ if "uploaded_image" in st.session_state:
 
     selected = st.session_state.topk_labels[st.session_state.selected_idx]
 
-    # DISEASE CARDS
+    # DISEASE INFO
     if os.path.exists(DISEASE_JSON):
-        data = json.load(open(DISEASE_JSON))
+        with open(DISEASE_JSON) as f:
+            data = json.load(f)
         disease = data.get(selected)
+
         if disease:
             st.markdown(f"## 🩺 {disease.get('full_name','Unknown')}")
             for k,v in disease.items():
                 if k!="full_name":
-                    st.markdown(
-                        f"<div class='card'><b>{k.replace('_',' ').title()}</b><br>{v}</div>",
-                        unsafe_allow_html=True
-                    )
+                    st.markdown(f"<div class='card'><b>{k}</b><br>{v}</div>", unsafe_allow_html=True)
 
     # CHAT
-    st.subheader("💬 Ask Questions")
-    q = st.text_input("Type your question")
+    st.subheader("Ask Questions")
+    q = st.text_input("Ask something")
 
     if st.button("Ask"):
         ans = call_gemini(f"Disease: {selected}\nQuestion: {q}")
@@ -261,16 +245,10 @@ if "uploaded_image" in st.session_state:
         st.session_state.chat_history.append(("AI", ans))
 
     for role,text in st.session_state.chat_history:
-        if role=="You":
-            st.markdown(f"<div class='card'>🧑 {text}</div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div class='card'>🤖 {text}</div>", unsafe_allow_html=True)
+        st.write(f"{role}: {text}")
 
     # SAVE
-    if st.button("💾 Save Session"):
+    if st.button("Save Session"):
         save_log()
-        st.success("Saved successfully ✅")
-
-# FOOTER
-st.markdown("---")
-st.markdown("<center><b>Group 4 BE Project 2026</b></center>", unsafe_allow_html=True)
+        st.success("Saved!")
+```
