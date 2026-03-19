@@ -23,7 +23,7 @@ DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite"
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 DB_PATH = "users.db"
 CSV_FILE = "all_users_logs.csv"
-DISEASE_JSON = "/Users/shreyapillai/Desktop/skin_vlm/hammodel/disease.json"
+DISEASE_JSON = "disease.json"
 
 # ---------------- Gemini ----------------
 try:
