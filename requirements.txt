@@ -1,15 +1,23 @@
 streamlit==1.55.0
-torch==2.9.0
-torchvision==0.24.0
+
+torch>=2.1.0
+torchvision>=0.16.0
+
 transformers
 huggingface_hub
+
 pillow
 pandas
-numpy
+numpy>=1.26.0
+
 google-generativeai
 supabase
-matplotlib
-pytorch-grad-cam
-openai-whisper
-opencv-python
 
+matplotlib
+
+# Correct GradCAM package
+grad-cam
+ttach
+
+opencv-python
+numpy==1.26.4
