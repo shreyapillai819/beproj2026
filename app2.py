@@ -1,23 +1,16 @@
 # ==========================================================
-# VLM Framework for Healthcare (FINAL FIXED VERSION)
-# GradCAM + Audio Safe + Analytics + Stable Deployment
+# VLM Framework for Healthcare (FINAL DEPLOYMENT VERSION)
 # ==========================================================
 
 import os
 import json
 import streamlit as st
 from datetime import datetime
-from PIL import Image
+from PIL import Image, ImageDraw
 import torch
-import numpy as np
-import matplotlib.pyplot as plt
 from transformers import AutoImageProcessor, AutoModelForImageClassification
 from huggingface_hub import snapshot_download
 from supabase import create_client
-
-# GradCAM
-from pytorch_grad_cam import GradCAM
-from pytorch_grad_cam.utils.image import show_cam_on_image
 
 # ---------------- CONFIG ----------------
 HF_REPO_ID = "shreyapillai1312/skin_vlm"
@@ -34,16 +27,50 @@ DISEASE_JSON = "disease.json"
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ---------------- GEMINI ----------------
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except:
+    genai = None
 
-def call_gemini(prompt):
+# ---------------- AUTH ----------------
+def signup(u, p):
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.5-flash-lite")
-        response = model.generate_content(prompt)
-        return response.text if response.text else "No response generated"
-    except Exception as e:
-        return f"Gemini Error: {str(e)}"
+        supabase.table("users").insert({
+            "username": u,
+            "password": p
+        }).execute()
+        return True
+    except:
+        return False
+
+def login(u, p):
+    res = supabase.table("users") \
+        .select("*") \
+        .eq("username", u) \
+        .eq("password", p) \
+        .execute()
+
+    return len(res.data) > 0
+
+# ---------------- SAVE LOG ----------------
+def save_log():
+    data = {
+        "username": st.session_state.user,
+        "image": st.session_state.image_name,
+        "patient": st.session_state.patient_data,
+        "predictions": [
+            {"label": l, "prob": float(p)}
+            for l, p in zip(
+                st.session_state.topk_labels,
+                st.session_state.topk_probs
+            )
+        ],
+        "selected": st.session_state.topk_labels[st.session_state.selected_idx],
+        "chat": st.session_state.chat_history,
+        "time": datetime.now().isoformat()
+    }
+
+    supabase.table("logs").insert(data).execute()
 
 # ---------------- MODEL ----------------
 @st.cache_resource
@@ -54,25 +81,6 @@ def load_model():
     model.eval()
     return processor, model, model.config.id2label
 
-# ---------------- GRADCAM ----------------
-def generate_gradcam(img, pixel_values, model):
-    try:
-        # ViT-compatible layer
-        target_layers = [model.vit.encoder.layer[-1].output]
-
-        cam = GradCAM(model=model, target_layers=target_layers)
-        grayscale_cam = cam(input_tensor=pixel_values)[0]
-
-        img_np = np.array(img.resize((224, 224))) / 255.0
-        cam_image = show_cam_on_image(img_np, grayscale_cam, use_rgb=True)
-
-        return cam_image
-
-    except Exception as e:
-        st.warning(f"GradCAM failed: {e}")
-        return None
-
-# ---------------- PREDICT ----------------
 def preprocess_image(img, processor):
     return processor(images=img, return_tensors="pt")["pixel_values"].to(DEVICE)
 
@@ -82,8 +90,26 @@ def predict(pixel_values, model, id2label, topk):
         probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
         vals, idx = torch.topk(probs, k=topk)
 
-    labels = [id2label.get(i.item(), str(i.item())) for i in idx[0]]
+    labels = [id2label.get(str(i.item()), id2label.get(i.item(), str(i.item()))) for i in idx[0]]
     return labels, vals[0].cpu().numpy()
+
+# ---------------- GEMINI ----------------
+def call_gemini(prompt):
+    if genai is None:
+        return "Gemini not installed"
+
+    if GEMINI_API_KEY is None:
+        return "API key missing"
+
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-2.5-flash-lite")
+
+        response = model.generate_content(prompt)
+        return response.text if response.text else "No response generated"
+
+    except Exception as e:
+        return f"Gemini Error: {str(e)}"
 
 # ---------------- UI ----------------
 st.set_page_config(page_title="VLM Healthcare", layout="wide")
@@ -94,110 +120,173 @@ background: linear-gradient(to right, #2196F3, #21CBF3);
 padding:15px;
 border-radius:15px;
 color:white;'>
-🧠 VLM SkinCare Enhanced
+🧠 VLM SkinCare
 </h1>
 """, unsafe_allow_html=True)
 
+# ---------------- LOGIN ----------------
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+if st.session_state.user is None:
+    tab1, tab2 = st.tabs(["Login","Signup"])
+
+    with tab1:
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+        if st.button("Login"):
+            if login(u, p):
+                st.session_state.user = u
+                st.rerun()
+            else:
+                st.error("Invalid credentials")
+
+    with tab2:
+        u = st.text_input("New Username")
+        p = st.text_input("New Password", type="password")
+        if st.button("Signup"):
+            if signup(u, p):
+                st.success("Account created")
+            else:
+                st.error("User exists")
+
+    st.stop()
+
+# ---------------- MAIN ----------------
+st.markdown(f"### 👋 Welcome, {st.session_state.user}")
+
 processor, model, id2label = load_model()
 
-# Sidebar
-st.sidebar.header("Settings")
-top_k = st.sidebar.slider("Top-K Predictions", 1, 5, 3)
-show_cam = st.sidebar.checkbox("Show Grad-CAM")
+top_k = st.sidebar.slider("Top-K predictions", 1, 7, 3)
 
-# Upload Section
-col1, col2 = st.columns([1, 1])
+if st.sidebar.button("Logout"):
+    st.session_state.clear()
+    st.rerun()
+
+col1, col2 = st.columns([1.2, 1])
 
 with col1:
     uploaded = st.file_uploader("Upload image", type=["jpg", "png"])
-    age = st.number_input("Age", 0, 120, 30)
+    age = st.number_input("Age", 0, 120, 40)
+    gender = st.selectbox("Gender", ["Female", "Male", "Other"])
+    skin = st.selectbox("Skin type", ["Type I", "II", "III", "IV", "V", "VI"])
+    run = st.button("Predict")
 
 with col2:
-    st.subheader("🎤 Voice Input")
-    audio = st.audio_input("Ask your question via voice")
+    out = st.empty()
 
-# ---------------- RUN ----------------
-if st.button("Predict"):
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "selected_idx" not in st.session_state:
+    st.session_state.selected_idx = 0
 
-    if uploaded is None:
-        st.warning("Please upload an image")
-        st.stop()
-
+# ---------------- PREDICT ----------------
+if run and uploaded:
     img = Image.open(uploaded).convert("RGB")
-    st.image(img, caption="Uploaded Image", use_container_width=True)
+    st.session_state.uploaded_image = img
+    st.session_state.image_name = uploaded.name
+    st.session_state.patient_data = {"age": age, "gender": gender, "skin": skin}
 
-    # Prediction
     pixel_values = preprocess_image(img, processor)
     labels, probs = predict(pixel_values, model, id2label, top_k)
 
-    st.subheader("🔍 Predictions")
-    for l, p in zip(labels, probs):
-        st.write(f"**{l}**: {p*100:.2f}%")
+    st.session_state.topk_labels = labels
+    st.session_state.topk_probs = probs
 
-    # GradCAM
-    if show_cam:
-        cam_img = generate_gradcam(img, pixel_values, model)
-        if cam_img is not None:
-            st.image(cam_img, caption="Grad-CAM Visualization")
+# ---------------- DISPLAY ----------------
+if "uploaded_image" in st.session_state:
+    img = st.session_state.uploaded_image.copy()
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 0, *img.size], outline="#0D47A1", width=20)
+    out.image(img)
 
-    # ---------------- ANALYTICS ----------------
-    st.subheader("📊 Prediction Confidence")
+    st.subheader("Predictions")
+    cols = st.columns(len(st.session_state.topk_labels))
 
-    fig, ax = plt.subplots()
-    ax.bar(labels, probs)
-    ax.set_xlabel("Disease")
-    ax.set_ylabel("Confidence")
-    ax.set_title("Top-K Predictions")
+    for i, label in enumerate(st.session_state.topk_labels):
+        with cols[i]:
+            if st.button(f"{label}\n{st.session_state.topk_probs[i]*100:.1f}%", key=i):
+                st.session_state.selected_idx = i
 
-    st.pyplot(fig, clear_figure=True)
+    selected = st.session_state.topk_labels[st.session_state.selected_idx]
 
-    # ---------------- Q&A ----------------
+    # ---------------- DISEASE INFO ----------------
+    disease = None
+    if os.path.exists(DISEASE_JSON):
+        with open(DISEASE_JSON) as f:
+            data = json.load(f)
+
+        disease = data.get(selected)
+
+        if disease:
+            st.markdown(f"## 🩺 {disease.get('full_name','Unknown')}")
+            for k, v in disease.items():
+                if k != "full_name":
+                    st.markdown(f"**{k}**: {v}")
+
+    # ---------------- CHAT ----------------
     st.subheader("💬 Ask Questions")
+    question = st.text_input("Enter your question here:")
 
-    question = st.text_input("Type your question")
+    if st.button("Ask"):
+        disease_context = ""
 
-    # Audio safe handling
-    if audio is not None:
-        st.info("Audio received (transcription not enabled yet)")
+        if os.path.exists(DISEASE_JSON):
+            with open(DISEASE_JSON) as f:
+                data = json.load(f)
 
-    if st.button("Ask") and question:
+            for i, label in enumerate(st.session_state.topk_labels):
+                disease_data = data.get(label)
+
+                if disease_data:
+                    disease_context += f"\n--- {label} ({st.session_state.topk_probs[i]*100:.1f}%) ---\n"
+                    for k, v in disease_data.items():
+                        disease_context += f"{k}: {v}\n"
+
         prompt = f"""
-Patient age: {age}
-Predictions: {list(zip(labels, [float(p) for p in probs]))}
+You are a helpful medical assistant.
 
-User Question: {question}
+Patient Info:
+{st.session_state.patient_data}
+
+Predicted Diseases:
+{list(zip(st.session_state.topk_labels, [float(p) for p in st.session_state.topk_probs]))}
+
+Primary Focus Disease:
+{selected}
+
+Disease Context:
+{disease_context}
+
+User Question:
+{question}
+
+Instructions:
+- Understand user intent first
+
+If question is:
+• Disease-specific → use predictions
+• Comparison → compare diseases
+• General → answer normally
 
 Rules:
-- Do NOT give final diagnosis
-- Keep answer simple
+- Do NOT give a definitive diagnosis
+- Keep answers clear, concise, and structured
 """
+
         answer = call_gemini(prompt)
-        st.success(answer)
 
-# ---------------- HISTORY ANALYTICS ----------------
-st.subheader("📈 Usage Analytics")
+        st.session_state.chat_history.append(("User", question))
+        st.session_state.chat_history.append(("AI", answer))
 
-if st.button("Load Analytics"):
-    try:
-        logs = supabase.table("logs").select("*").execute().data
+    for role, text in st.session_state.chat_history:
+        st.write(f"{role}: {text}")
 
-        if not logs:
-            st.info("No logs found")
-        else:
-            import pandas as pd
-            df = pd.DataFrame(logs)
+    # ---------------- SAVE ----------------
+    if st.button("Save Session"):
+        save_log()
+        st.success("Saved!")
 
-            df['time'] = pd.to_datetime(df['time'])
-            df = df.sort_values('time')
 
-            fig2, ax2 = plt.subplots()
-            ax2.plot(df['time'], range(len(df)))
 
-            ax2.set_title("App Usage Over Time")
-            ax2.set_xlabel("Time")
-            ax2.set_ylabel("Sessions")
 
-            st.pyplot(fig2, clear_figure=True)
-
-    except Exception as e:
-        st.error(f"Analytics error: {e}")
