@@ -1,24 +1,15 @@
 streamlit==1.55.0
 torch==2.9.0
 torchvision==0.24.0
-
 transformers
 huggingface_hub
-
 pillow
 pandas
 numpy
-matplotlib
-
 google-generativeai
-
 supabase
-
-# Grad-CAM
+matplotlib
 pytorch-grad-cam
-
-# Optional (recommended for audio → text later)
 openai-whisper
-
-# Utils
 opencv-python
+
