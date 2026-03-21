@@ -1,13 +1,14 @@
 # ==========================================================
-# VLM Framework for Healthcare (FINAL DEPLOYMENT VERSION)
+# VLM Framework for Healthcare (Enhanced FINAL Version)
 # ==========================================================
 
-import os
-import json
+import os, json
 import streamlit as st
 from datetime import datetime
 from PIL import Image, ImageDraw
 import torch
+import pandas as pd
+import altair as alt
 from transformers import AutoImageProcessor, AutoModelForImageClassification
 from huggingface_hub import snapshot_download
 from supabase import create_client
@@ -35,21 +36,13 @@ except:
 # ---------------- AUTH ----------------
 def signup(u, p):
     try:
-        supabase.table("users").insert({
-            "username": u,
-            "password": p
-        }).execute()
+        supabase.table("users").insert({"username": u, "password": p}).execute()
         return True
     except:
         return False
 
 def login(u, p):
-    res = supabase.table("users") \
-        .select("*") \
-        .eq("username", u) \
-        .eq("password", p) \
-        .execute()
-
+    res = supabase.table("users").select("*").eq("username", u).eq("password", p).execute()
     return len(res.data) > 0
 
 # ---------------- SAVE LOG ----------------
@@ -60,17 +53,17 @@ def save_log():
         "patient": st.session_state.patient_data,
         "predictions": [
             {"label": l, "prob": float(p)}
-            for l, p in zip(
-                st.session_state.topk_labels,
-                st.session_state.topk_probs
-            )
+            for l, p in zip(st.session_state.topk_labels, st.session_state.topk_probs)
         ],
         "selected": st.session_state.topk_labels[st.session_state.selected_idx],
         "chat": st.session_state.chat_history,
         "time": datetime.now().isoformat()
     }
-
     supabase.table("logs").insert(data).execute()
+
+def load_history(user):
+    res = supabase.table("logs").select("*").eq("username", user).execute()
+    return res.data
 
 # ---------------- MODEL ----------------
 @st.cache_resource
@@ -89,96 +82,69 @@ def predict(pixel_values, model, id2label, topk):
         outputs = model(pixel_values)
         probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
         vals, idx = torch.topk(probs, k=topk)
-
     labels = [id2label.get(str(i.item()), id2label.get(i.item(), str(i.item()))) for i in idx[0]]
     return labels, vals[0].cpu().numpy()
 
 # ---------------- GEMINI ----------------
 def call_gemini(prompt):
-    if genai is None:
-        return "Gemini not installed"
-
-    if GEMINI_API_KEY is None:
-        return "API key missing"
-
+    if genai is None: return "Gemini not installed"
+    if GEMINI_API_KEY is None: return "API key missing"
     try:
         genai.configure(api_key=GEMINI_API_KEY)
         model = genai.GenerativeModel("gemini-2.5-flash-lite")
-
         response = model.generate_content(prompt)
         return response.text if response.text else "No response generated"
-
     except Exception as e:
         return f"Gemini Error: {str(e)}"
 
 # ---------------- UI ----------------
 st.set_page_config(page_title="VLM Healthcare", layout="wide")
 
-st.markdown("""
-<h1 style='text-align:center;
-background: linear-gradient(to right, #2196F3, #21CBF3);
-padding:15px;
-border-radius:15px;
-color:white;'>
-🧠 VLM SkinCare
-</h1>
-""", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align:center;background: linear-gradient(to right, #2196F3, #21CBF3);padding:15px;border-radius:15px;color:white;'>🧠 VLM SkinCare</h1>", unsafe_allow_html=True)
 
 # ---------------- LOGIN ----------------
-if "user" not in st.session_state:
-    st.session_state.user = None
-
+if "user" not in st.session_state: st.session_state.user = None
 if st.session_state.user is None:
     tab1, tab2 = st.tabs(["Login","Signup"])
-
     with tab1:
-        u = st.text_input("Username")
-        p = st.text_input("Password", type="password")
+        u = st.text_input("Username"); p = st.text_input("Password", type="password")
         if st.button("Login"):
-            if login(u, p):
-                st.session_state.user = u
-                st.rerun()
-            else:
-                st.error("Invalid credentials")
-
+            if login(u, p): st.session_state.user = u; st.rerun()
+            else: st.error("Invalid credentials")
     with tab2:
-        u = st.text_input("New Username")
-        p = st.text_input("New Password", type="password")
+        u = st.text_input("New Username"); p = st.text_input("New Password", type="password")
         if st.button("Signup"):
-            if signup(u, p):
-                st.success("Account created")
-            else:
-                st.error("User exists")
-
+            if signup(u, p): st.success("Account created")
+            else: st.error("User exists")
     st.stop()
 
 # ---------------- MAIN ----------------
 st.markdown(f"### 👋 Welcome, {st.session_state.user}")
 
 processor, model, id2label = load_model()
-
 top_k = st.sidebar.slider("Top-K predictions", 1, 7, 3)
+if st.sidebar.button("Logout"): st.session_state.clear(); st.rerun()
 
-if st.sidebar.button("Logout"):
-    st.session_state.clear()
-    st.rerun()
+# History dashboard
+with st.sidebar.expander("📜 History Dashboard"):
+    history = load_history(st.session_state.user)
+    if history:
+        for h in history:
+            st.write(f"**{h['time']}** - {h['selected']}")
+            st.write(f"Predictions: {h['predictions']}")
+            st.write(f"Chat turns: {len(h['chat'])}")
 
 col1, col2 = st.columns([1.2, 1])
-
 with col1:
     uploaded = st.file_uploader("Upload image", type=["jpg", "png"])
     age = st.number_input("Age", 0, 120, 40)
     gender = st.selectbox("Gender", ["Female", "Male", "Other"])
     skin = st.selectbox("Skin type", ["Type I", "II", "III", "IV", "V", "VI"])
     run = st.button("Predict")
+with col2: out = st.empty()
 
-with col2:
-    out = st.empty()
-
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "selected_idx" not in st.session_state:
-    st.session_state.selected_idx = 0
+if "chat_history" not in st.session_state: st.session_state.chat_history = []
+if "selected_idx" not in st.session_state: st.session_state.selected_idx = 0
 
 # ---------------- PREDICT ----------------
 if run and uploaded:
@@ -186,23 +152,23 @@ if run and uploaded:
     st.session_state.uploaded_image = img
     st.session_state.image_name = uploaded.name
     st.session_state.patient_data = {"age": age, "gender": gender, "skin": skin}
-
     pixel_values = preprocess_image(img, processor)
     labels, probs = predict(pixel_values, model, id2label, top_k)
-
-    st.session_state.topk_labels = labels
-    st.session_state.topk_probs = probs
+    st.session_state.topk_labels, st.session_state.topk_probs = labels, probs
 
 # ---------------- DISPLAY ----------------
 if "uploaded_image" in st.session_state:
     img = st.session_state.uploaded_image.copy()
-    draw = ImageDraw.Draw(img)
-    draw.rectangle([0, 0, *img.size], outline="#0D47A1", width=20)
+    draw = ImageDraw.Draw(img); draw.rectangle([0, 0, *img.size], outline="#0D47A1", width=20)
     out.image(img)
 
     st.subheader("Predictions")
-    cols = st.columns(len(st.session_state.topk_labels))
+    # Confidence visualization
+    df = pd.DataFrame({"Label": st.session_state.topk_labels, "Probability": st.session_state.topk_probs})
+    chart = alt.Chart(df).mark_bar().encode(x="Label", y="Probability", tooltip=["Label","Probability"])
+    st.altair_chart(chart, use_container_width=True)
 
+    cols = st.columns(len(st.session_state.topk_labels))
     for i, label in enumerate(st.session_state.topk_labels):
         with cols[i]:
             if st.button(f"{label}\n{st.session_state.topk_probs[i]*100:.1f}%", key=i):
@@ -210,79 +176,28 @@ if "uploaded_image" in st.session_state:
 
     selected = st.session_state.topk_labels[st.session_state.selected_idx]
 
-    # ---------------- DISEASE INFO ----------------
-    disease = None
+    # Disease info
     if os.path.exists(DISEASE_JSON):
-        with open(DISEASE_JSON) as f:
-            data = json.load(f)
-
+        with open(DISEASE_JSON) as f: data = json.load(f)
         disease = data.get(selected)
-
         if disease:
             st.markdown(f"## 🩺 {disease.get('full_name','Unknown')}")
             for k, v in disease.items():
-                if k != "full_name":
-                    st.markdown(f"**{k}**: {v}")
+                if k != "full_name": st.markdown(f"**{k}**: {v}")
 
-    # ---------------- CHAT ----------------
+    # Chat
     st.subheader("💬 Ask Questions")
     question = st.text_input("Enter your question here:")
-
     if st.button("Ask"):
         disease_context = ""
-
         if os.path.exists(DISEASE_JSON):
-            with open(DISEASE_JSON) as f:
-                data = json.load(f)
-
+            with open(DISEASE_JSON) as f: data = json.load(f)
             for i, label in enumerate(st.session_state.topk_labels):
                 disease_data = data.get(label)
-
                 if disease_data:
                     disease_context += f"\n--- {label} ({st.session_state.topk_probs[i]*100:.1f}%) ---\n"
                     for k, v in disease_data.items():
                         disease_context += f"{k}: {v}\n"
-
         prompt = f"""
 You are a helpful medical assistant.
-
-Patient Info:
-{st.session_state.patient_data}
-
-Predicted Diseases:
-{list(zip(st.session_state.topk_labels, [float(p) for p in st.session_state.topk_probs]))}
-
-Primary Focus Disease:
-{selected}
-
-Disease Context:
-{disease_context}
-
-User Question:
-{question}
-
-Instructions:
-- Understand user intent first
-
-If question is:
-• Disease-specific → use predictions
-• Comparison → compare diseases
-• General → answer normally
-
-Rules:
-- Do NOT give a definitive diagnosis
-- Keep answers clear, concise, and structured
-"""
-
-        answer = call_gemini(prompt)
-
-        st.session_state.chat_history.append(("User", question))
-        st.session_state.chat_history.append(("AI", answer))
-
-    for role, text in st.session_state.chat_history:
-        st.write(f"{role}: {text}")
-
-    # ---------------- SAVE ----------------
-    if st.button("Save Session"):
-        save_log()
-        st.success("Saved!")
+Patient Info: {st.session_state.patient_data}
